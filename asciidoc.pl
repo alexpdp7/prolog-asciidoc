@@ -7,22 +7,56 @@
 %   * https://asciidoc.zulipchat.com/#narrow/stream/335219-asciidoc-lang/topic/Clarification.20on.20constrained.20formatting.20marks/near/299416275
 %   * https://docs.asciidoctor.org/asciidoc/latest/text/bold/#mixing-bold-with-other-formatting
 
+% run tests with:
+%
+% $ swipl -g run_tests -t halt asciidoc.pl
+
 :- set_prolog_flag(double_quotes, chars).
 
 % this is unnecessary with SWI, but needed with Scryer
 :- use_module(library(lists)).
 
+% char_type/2 is builtin in SWI, but in charsio in Scryer
+
+:- use_module(library(charsio)). 
+
 % scryer-prolog TODO:
 % * find a way to run unit tests (they currently cause consulting this file to fail)
 
-punct(",") --> ",".
-punct(";") --> ";".
-punct("\"") --> "\"".
-punct(".") --> ".".
-punct("?") --> "?".
-punct("!") --> "!".
+%%% Character types
 
-space(" ") --> " ".
+punct(',') --> ",".
+punct(';') --> ";".
+punct('"') --> "\"".
+punct('.') --> ".".
+punct('?') --> "?".
+punct('!') --> "!".
+
+space(' ') --> " ".
+
+hyphen('-') --> "-".
+
+word_character(F) --> [F], {char_type(F, alnum)}.
+word_character("_") --> "_".
+
+%%% Document header
+
+% See https://docs.asciidoctor.org/asciidoc/latest/document/header/
+
+attribute_entry(attr_en(AN, nothing)) --> ":", attribute_name(AN), ":\n".
+attribute_name([F|R]) --> word_character(F), rest_of_attribute_name(R).
+rest_of_attribute_name([F|R]) --> (word_character(F); hyphen(F)), rest_of_attribute_name(R).
+rest_of_attribute_name([]) --> [].
+
+:- begin_tests(header).
+:- set_prolog_flag(double_quotes, chars).
+
+test(empty_attribute_entry) :- phrase(attribute_entry(X), ":hola:\n"), !,
+			       assertion(X == attr_en([h, o, l, a], nothing)).
+
+:- end_tests(header).
+
+%%% Inlines
 
 formatting_mark("*") --> "*".
 formatting_mark("_") --> "_".
@@ -30,11 +64,11 @@ formatting_mark("`") --> "`".
 formatting_mark("#") --> "#".
 formatting_mark("~") --> "~".
 
-pre_constrained_formatting_mark(pre_cfm(X)) --> space([X]).
+pre_constrained_formatting_mark(pre_cfm(X)) --> space(X).
 pre_constrained_formatting_mark(pre_cfm(bl)) --> [bl].
 
-post_constrained_formatting_mark(post_cfm(X)) --> space([X]).
-post_constrained_formatting_mark(post_cfm(X)) --> punct([X]).
+post_constrained_formatting_mark(post_cfm(X)) --> space(X).
+post_constrained_formatting_mark(post_cfm(X)) --> punct(X).
 post_constrained_formatting_mark(post_cfm(el)) --> [el].
 
 constrained_formatting_mark([Pre, cfm(F, T, F)]), [Post] -->
@@ -73,11 +107,7 @@ line_parts(XRFT, B, A) :- line_parts_raw(XR, B, A), append(XR, XRF), append([bl|
 
 parse_line(X, Y) :- append([[bl|X], [el]], XW), phrase(line_parts(Y), XW).
 
-% run tests with:
-%
-% $ swipl -g run_tests -t halt asciidoc_poc.pro
-
-:- begin_tests(basic).
+:- begin_tests(inlines).
 :- set_prolog_flag(double_quotes, chars).
 
 test(plain) :- parse_line("abc", X), !,
@@ -107,4 +137,4 @@ test(lone_ucfm_with_nested_cfm) :- parse_line("**_b_**", X), !,
 test(consecutive_ucfms) :- parse_line("**a** **b**", X), !,
 			   assertion(X == [ucfm([*], [*], [a], [*], [*]), ' ', ucfm([*], [*], [b], [*], [*])]).
 
-:- end_tests(basic).
+:- end_tests(inlines).
