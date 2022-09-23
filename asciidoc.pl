@@ -39,11 +39,18 @@ hyphen('-') --> "-".
 word_character(F) --> [F], {char_type(F, alnum)}.
 word_character("_") --> "_".
 
+new_line('\n') --> "\n".
+
 %%% Document header
 
 % See https://docs.asciidoctor.org/asciidoc/latest/document/header/
 
-attribute_entry(attr_en(AN, nothing)) --> ":", attribute_name(AN), ":\n".
+header(h(X, Y)) --> header_lines(X), new_line(Y).
+header_lines([X|XS]) --> header_line(X), header_lines(XS).
+header_lines([]) --> [].
+header_line(X) --> attribute_entry(X).
+
+attribute_entry(attr_en(":", AN, nothing, ":\n")) --> ":", attribute_name(AN), ":\n".
 attribute_name([F|R]) --> word_character(F), rest_of_attribute_name(R).
 rest_of_attribute_name([F|R]) --> (word_character(F); hyphen(F)), rest_of_attribute_name(R).
 rest_of_attribute_name([]) --> [].
@@ -52,7 +59,10 @@ rest_of_attribute_name([]) --> [].
 :- set_prolog_flag(double_quotes, chars).
 
 test(empty_attribute_entry) :- phrase(attribute_entry(X), ":hola:\n"), !,
-			       assertion(X == attr_en([h, o, l, a], nothing)).
+			       assertion(X == attr_en(":", [h, o, l, a], nothing, ":\n")).
+
+test(header) :- phrase(header(X), ":hola:\n\n"), !,
+		X = h([attr_en([:], [h, o, l, a], nothing, [:, '\n'])], '\n').
 
 :- end_tests(header).
 
