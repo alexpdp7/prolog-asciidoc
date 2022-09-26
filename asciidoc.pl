@@ -79,6 +79,7 @@ pre_constrained_formatting_mark(pre_cfm(bl)) --> [bl].
 
 post_constrained_formatting_mark(post_cfm(X)) --> space(X).
 post_constrained_formatting_mark(post_cfm(X)) --> punct(X).
+post_constrained_formatting_mark(post_cfm(X)) --> new_line(X).
 post_constrained_formatting_mark(post_cfm(el)) --> [el].
 
 constrained_formatting_mark([Pre, cfm(F, T, F)]), [Post] -->
@@ -148,3 +149,25 @@ test(consecutive_ucfms) :- parse_line("**a** **b**", X), !,
 			   assertion(X == [ucfm([*], [*], [a], [*], [*]), ' ', ucfm([*], [*], [b], [*], [*])]).
 
 :- end_tests(inlines).
+
+%%% Blocks
+
+block(uol(X)) --> unordered_list(X).
+
+%%%% Unordered list
+
+unordered_list([X|XS]) --> unordered_list_item(X), unordered_list(XS).
+unordered_list([]) --> [].
+unordered_list_item(uoli("*", " ", PT, "\n")) -->
+    "* ",
+    [X|XS],
+    {parse_line([X|XS], PT), \+ append([_, "\n* ", _], PT)},
+    "\n".
+
+:- begin_tests(unordered_list).
+:- set_prolog_flag(double_quotes, chars).
+
+test(unordered_list) :- phrase(unordered_list(X), "* a\n* b\n* c\n"), !,
+			assertion(X == [uoli([*], [' '], [a], ['\n']), uoli([*], [' '], [b], ['\n']), uoli([*], [' '], [c], ['\n'])]).
+
+:- end_tests(unordered_list).
