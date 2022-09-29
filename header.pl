@@ -6,7 +6,7 @@
 
 :-use_module(char_types).
 
-
+header(h(empty, empty)) --> [].
 header(h(X, Y)) --> header_lines(X), new_line(Y).
 header_lines([X|XS]) --> header_line(X), header_lines(XS).
 header_lines([]) --> [].
