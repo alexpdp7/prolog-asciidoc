@@ -17,6 +17,6 @@ space(' ') --> " ".
 hyphen('-') --> "-".
 
 word_character(F) --> [F], {char_type(F, alnum)}.
-word_character("_") --> "_".
+word_character('_') --> "_".
 
 new_line('\n') --> "\n".
