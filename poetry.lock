@@ -1,0 +1,18 @@
+[[package]]
+name = "swiplserver"
+version = "1.0.2"
+description = "swiplserver integrates SWI Prolog with Python."
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[metadata]
+lock-version = "1.1"
+python-versions = "^3.9"
+content-hash = "a4f8ab6cba5100695e590b6963e05d214d0df4ffaf64fbcb2d8d3f0299610481"
+
+[metadata.files]
+swiplserver = [
+    {file = "swiplserver-1.0.2-py3-none-any.whl", hash = "sha256:f83460dc8afa205d4014a6ea1265154749ffce0167e466b51f18d81f5d51e750"},
+    {file = "swiplserver-1.0.2.tar.gz", hash = "sha256:42e2fae197c1200bb102cba9b186a86ad0ffd224e867bc9cb6b98b66399263b5"},
+]
