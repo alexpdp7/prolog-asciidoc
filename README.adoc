@@ -25,6 +25,8 @@ Right now the parser is very limited. It can parse files like `sample.adoc`:
 * And we are * error tolerant.
 ----
 
+Refer to link:parsing-asciidoc-in-prolog.adoc[parsing AsciiDoc in Prolog] for further details.
+
 You need https://python-poetry.org/[Poetry] and https://www.swi-prolog.org/[SWI-Prolog] to run the parser.
 To execute the parser, run the following command within a clone of this repository.
 
