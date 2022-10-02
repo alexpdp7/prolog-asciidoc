@@ -1,0 +1,927 @@
+= Parsing AsciiDoc in Prolog
+:toc:
+:sectanchors:
+
+[CAUTION]
+====
+This document is written in AsciiDoc.
+GitHub does not allows using all of AsciiDoc features.
+Notably, the `kbd` macro in AsciiDoc to describe keystrokes is an optional feature in AsciiDoc, which cannot be turned on in GitHub.
+
+If you view this content on GitHub, you will see text like pass:[kbd:[Return]] to prompt you to press return.
+
+If you render the file by running:
+
+[subs=+quotes]
+----
+$ *asciidoctor parsing-asciidoc-in-prolog.adoc -a experimental*
+----
+
+The generated HTML will render the `kbd` macro correctly.
+
+Sidebars are not correctly rendered either.
+====
+
+== Background
+
+I have been working the last two years on a team that makes heavy use of AsciiDoc.
+We previously used DocBook, which allows sophisticated marking up of technical documents
+For example, our documents include terminal sessions and DocBook permits marking up code blocks.
+We migrated to AsciiDoc to improve the onboarding experience, as lightweight markup languages (like Markdown) are easier to learn.
+However, our team had a significant amount of DocBook tooling, like spellcheckers and linters.
+As DocBook is XML, writing tools for DocBook is relatively easy because there are many good XML parsers.
+Using XPath and other techniques, you can write tools that analyze DocBook and perform any validation you need.
+
+However, AsciiDoc is not XML.
+When writing a tool such a spellchecker, you want the tool to skip parts of a file.
+AsciiDoc directives, source blocks, and others.
+This is easily achievable in DocBook, but harder in AsciiDoc.
+
+The most reliable option to do this is use a tool like AsciiDoctor to convert AsciiDoc to HTML or DocBook.
+This way, elements like source blocks are converted to XML elements, and you can apply the same techniques as when processing DocBook (including reusing your existing DocBook tools).
+However, this has a significant limitation: as you are processing a converted version of the original document, you cannot provide line/column information about errors found.
+If you write a spellchecker, you can either show the context in the converted DocBook file, or have the user hunt for the error in their original AsciiDoc.
+Furthermore, if you want your spellchecker to fix mistakes, you cannot do this in the converted DocBook file.
+
+Tools such as https://vale.sh/[Vale] use clever tricks to correlate positions in a converted file to the original file.
+This works better than you would expect, but it is not 100% reliable, and complex to implement.
+
+Another option is to use an AsciiDoc parser to obtain a parsed version of the file with line/column information.
+However, there are not many AsciiDoc parsers, and they all have limitations in what can be achieved with this.
+
+AsciiDoctor is the de-facto reference AsciiDoc parser.
+AsciiDoctor provides extension hooks to write software that processes AsciiDoc.
+However, the parsing mechanism of AsciiDoctor is complex, and there are parts of AsciiDoctor, such as inline formatting, that cannot be processed accurately with line/column information.
+
+Other AsciiDoc parsers exist.
+Probably the most sophisticated alternative parser is https://github.com/asciidoctor/asciidoctor-intellij-plugin/[the parser for the IntelliJ AsciiDoc plugin].
+This parser builds upon the parsing functionalities of IntelliJ and has a good model of AsciiDoc.
+However, the parser is hard to use outside IntelliJ, and it also has limitations in the features of AsciiDoc it parses fully.
+
+https://github.com/gmarpons/asciidoc-hs[Asciidoc-hs] is the other most interesting AsciiDoc parser.
+The parser uses a variant of the Haskell Parsec library.
+The parser is designed to enable writing tools, but AsciiDoc support is still incomplete.
+The author also wrote https://www.tweag.io/blog/2021-06-15-asciidoc-haskell-pandoc/[a great article on parsing AsciiDoc].
+
+.About Markdown
+****
+There are many other lightweight markup languages that provide similar functionality to AsciiDoc.
+However, for our purposes, nearly no other language provides support for styling code blocks, so we cannot use them.
+
+The most popular alternative language is Markdown.
+Markdown is a simpler language, so due to its popularity, there are many parsers available.
+In fact, some of those parsers provide full line/column information.
+****
+
+=== Tackling the problem
+
+A parser that processes the entire AsciiDoc functionality and dumps a structured parsed version of the file with complete line/column information would make writing AsciiDoc tooling easy.
+Parsing text is a traditional computer science, so there is extensive material for writing parsers.
+
+However, parsing is a complex problem.
+Many off-the-shelf parsers exist that can parse languages.
+Most parsers parse some category of languages, typically a subset of what is known as context-free grammars (CFGs).
+To decide which parser to use, it helps to identify which CFG subset a language is part of, and this is not immediately obvious.
+
+However, the AsciiDoc language is not a CFG.
+Some features such as inline formatting in its constrained and unconstrained variants (e.g. wrapping text in `pass:[*]` or `pass:[**]` require inspection of the context to parse correctly.
+
+Substitutions is also another complex functionality of AsciiDoc.
+Substitutions are the different types of inline formatting processing in AsciiDoc.
+Quotes substitution is inline formatting, character replacement substitution allows writing symbols such as the em dash by typing `pass:[--]`, and macro substitutions are how crossreferences, links, and others are implemented.
+AsciiDoc allows you to specify which substitutions are applied to each block (and even in which order they are processed).
+This is also part of how code blocks are implemented, most substitutions are disabled by default in code blocks, allowing for verbatim processing of code blocks.
+The flexibility of substitutions also makes parsing harder, the parsing of a block depends on the parsing of the definition of the block.
+
+Many computer languages have similar parsing difficulties.
+Parsing libraries offer hooks to customize the parsing process to tackle those difficulties.
+However, AsciiDoc is so complex to parse that parsers such as Asciidoc-hs require using them extensively, making maintaining them hard.
+
+.More about Markdown
+****
+Although Markdown is simpler than AsciiDoc, it shares some of these parsing difficulties.
+
+The author of Pandoc is experimenting with https://djot.net/[Djot], a simpler language that tries to avoid most of the parsing difficulties in Markdown.
+However, the Djot parser is still a custom parser.
+****
+
+=== Considering Prolog
+
+I investigated different parsing mechanisms for a while.
+However, even using the most sophisticated parsers I found (for example, instaparse), writing an AsciiDoc parser looked a very difficult task.
+While discussing this over the Internet, someone jokingly suggested Prolog to me.
+
+Prolog is the one of the few logic programming languages in existence today.
+Prolog was created in 1972 to tackle artificial intelligence problems, including natural language parsing.
+
+I studied Prolog in university twenty years ago, and loved every minute of it.
+However, I had never used Prolog for parsing, and when thinking about AsciiDoc parsing, I had never considered using it.
+
+It turns out that Prolog seems like an ideal fit for parsing AsciiDoc and other lightweight markup languages.
+
+== About this document
+
+This document does not pretend to teach Prolog or even a "proper" way of parsing using Prolog.
+I am not a Prolog expert, so there are probably better ways to write parsers.
+
+What this document explains is the techniques I used to build a limited, but working AsciiDoc parser.
+There is not a lot of freely available documentation about parsing with DCGs, and the available documentation generally does not parse strings, so it is not straightforward for Prolog novices to apply these documents to string parsing.
+
+There exists https://github.com/rla/prolog-markdown[a Markdown parser implemented in Prolog] that is a complete example of string parsing, but it contains many optimizations, which make it hard to understand.
+
+By following the document, you should acquire the minimal Prolog knowledge to write similar parsers and the terminology to follow other Prolog documentation to deepen your skills.
+
+== Introducing Prolog
+
+Prolog is a language that can represent facts.
+A typical example of a Prolog fact is:
+
+----
+parent(alice, bob).
+----
+
+A way to read the predicate above is "Alice is Bob's parent".
+We can describe many parental relationships to Prolog.
+
+----
+parent(alice, bob).
+parent(bob, charlie).
+parent(bob, diane).
+parent(ellen, fred).
+----
+
+Using SWI-Prolog (or any other Prolog), we can experiment with these facts using a REPL.
+Run the `swipl` command, then type `[user].`, then press kbd:[Return], type the facts, then type kbd:[Ctrl+D].
+
+[subs=+quotes]
+----
+$ *swipl*
+_... output omitted..._
+?- *[user].*
+|: *parent(alice, bob).*
+|: *parent(bob, charlie).*
+|: *parent(bob, diane).*
+|: *parent(ellen, fred).*
+|: **^D**% user://1 compiled 0.01 sec, 4 clauses
+true.
+
+?-
+----
+
+Then you can "ask" Prolog about those facts.
+
+[subs=+quotes]
+----
+?- *parent(alice, bob).*  _is alice bob's parent?_
+true.                   _yes_
+
+?- *parent(alice, fred).* _is alice fred's parent?_
+false.                  _no_
+
+?- *parent(bob, X).*      _who are bob's children?_
+X = charlie *;*           _charlie_
+X = diane.              _and diane_
+----
+
+In some circumstances, Prolog prints a single solution and stops, such as on the first two questions.
+In others, Prolog prints a solution such as ``X = charlie ``, then pauses for input.
+You can press kbd:[;] to get more solutions, or kbd:[.] to stop.
+
+Besides facts, you can also add rules to Prolog.
+
+[subs=+quotes]
+----
+?- *[user].*
+|: *grandparent(GP, C) :- parent(GP, P), parent(P, C).*
+|: **^D**% user://2 compiled 0.00 sec, 1 clauses
+true.
+----
+
+The rule above can be read as "``GP`` is ``C``'s grandparent if ``GP`` is ``P``'s  parent, and ``P`` is ``C``'s parent".
+
+[subs=+quotes]
+----
+?- *grandparent(alice, X).*
+X = charlie **;**
+X = diane.
+----
+
+And of course, you can ask questions on those rules.
+
+When asked a question, Prolog searches its facts database.
+With rules, Prolog must try differents facts and rules to reach an answer.
+When Prolog attempts to apply a rule and fails, it backtracks to try other rules.
+
+You can trace the execution of Prolog by using `trace`.
+
+[subs=+quotes]
+----
+?- *trace.*
+true.
+
+[trace]  ?- *grandparent(bob, X).*
+   Call: (10) grandparent(bob, _4706) ? **c**reep
+   Call: (11) parent(bob, _5894) ? **c**reep
+   Exit: (11) parent(bob, charlie) ? **c**reep
+   Call: (11) parent(charlie, _4706) ? **c**reep
+   Fail: (11) parent(charlie, _4706) ? **c**reep
+   Redo: (11) parent(bob, _5894) ? **c**reep
+   Exit: (11) parent(bob, diane) ? **c**reep
+   Call: (11) parent(diane, _4706) ? **c**reep
+   Fail: (11) parent(diane, _4706) ? **c**reep
+   Fail: (10) grandparent(bob, _4706) ? **c**reep
+false.
+----
+
+At every tracing step, press kbd:[c] to continue the execution.
+
+To find if `bob` has any grandchildren, Prolog finds the `parent(bob, charlie)` fact.
+Then, using the grandparent rule, it tries to find a solution for `parent(charlie, X)`.
+There is no fact to prove this, so Prolog backtracks and tries again with `diane`, and fails again.
+
+It turns out that this process is similar to parsing.
+When parsing languages, there are many rules that describe the different structures in a language.
+However, at any given point, there may be different rules to try.
+Parsers need to try each rule, and backtrack if they cannot apply a rule completely.
+
+So besides using Prolog to reason about facts and rules, we can apply it to parsing languages.
+
+=== Introducing DCGs
+
+Using the syntax above, you can write parsers in Prolog.
+However, Prolog provides a syntax more suitable for writing parsers.
+Definite clause grammars (DCGs) describe parsing rules similar to existing grammar parsing rules.
+
+DCGs describe parsing rules for lists.
+
+[subs=+quotes]
+----
+?- *[user].*
+|: *as --> a, as.*
+|: *as --> [].*
+|: *a --> [a].*
+----
+
+The following DCGs can be read as:
+
+* A list following the rule `as` is `a`, followed by `as`.
+* The empty list follows the rule `as`.
+* A list containing an `a` follows the `a` rule.
+
+We can ask Prolog whether some lists follow the `as` rule or not:
+
+[subs=+quotes]
+----
+?- *phrase(as, [a, a]).*
+true **.**
+
+?- *phrase(as, [a, b])*.
+false.
+----
+
+More interestingly, with simple rules, we can ask Prolog for lists that follow some rule.
+
+[subs=+quotes]
+----
+?- *length(X, _), phrase(as, X).*
+X = [] **;**
+X = [a] **;**
+X = [a, a] **;**
+X = [a, a, a] **.**
+----
+
+`length(X, _)` is a predicate about the length of a list `X`.
+`pass:[_]` is the length of the list (so in `length([a,a,a], X)`, `X` is 3), but `pass:[_]` means "I do not care".
+This predicate has the side-effect of trying to match the following statements with lists of increasing length.
+First, Prolog tries to find answers of length 0, then of length 1, and so on.
+
+Prolog finds these solutions, which are lists of ``a``s.
+
+=== About Prolog strings
+
+DCGs process lists, not strings.
+So if we want to write Prolog DCGs that parse text, we need to represent such text as a list of characters.
+
+There are many different Prolog implementations.
+This parser has been developed using SWI-Prolog.
+Other Prolog implementations of interest for parsing are:
+
+Scryer Prolog::
+Scryer Prolog is a Prolog implementation in Rust.
+Using Scryer Prolog, a parser could be embedded in a Rust program and distributed as a standalone binary file.
+Additionally, Scryer Prolog uses a new way of manipulating strings stored as lists of characters, which is explicitly designed to make DCG-based parsers efficient.
+
+Tau Prolog::
+Tau Prolog is a Prolog implementation in JavaScript.
+Using Tau Prolog, a parser could run on a browser.
+Although both SWI-Prolog (implemented in C) and Scryer Prolog can be compiled to WASM, Tau Prolog might be friendlier to embed in JavaScript environments.
+
+ichiban/prolog::
+ichiban/prolog is a Prolog implementation in Go.
+ichiban/prolog is designed for embedding, and distributing Go binaries is very convenient.
+
+Prolog implementations are mostly compatible, following to some degree the ISO Prolog standard.
+However, string representations are not completely standardized.
+
+Scryer Prolog is designed to work with lists of chars.
+When the `double_quotes` Prolog flag is set to `chars`, `"xy"` represents a two element list formed by the characters `x` and `y`.
+Scryer Prolog has this default.
+Include:
+
+----
+:- set_prolog_flag(double_quotes, chars).
+----
+
+In Prolog source files to activate the flag in environments with different defaults, such as SWI-Prolog.
+
+== Implementing parsers in Prolog
+
+We can start implementing parsers in Prolog.
+Our objective is to write a parser that takes an input file, and produces a file representing the structure of the file, including line/column information.
+
+This could be implemented completely in Prolog, but I am more fluent in other languages, so I decided to split the implementation of the parser in two parts:
+
+* A Prolog program that uses DCGs to create a Prolog structure of the parsed file.
+* A Python program that invokes the Prolog program, adds line/column information to the structure, and then writes a JSON representation of the structure.
+
+The Python program uses the swiplserver library that in turn uses the Machine Query Interface SWI-Prolog functionality to communicate both languages.
+
+SWI-Prolog prints the representation of a parsed AsciiDoc file like this:
+
+----
+doc(
+	h([
+		attr_en([:], [f, o, o], nothing, [:, '\n'])
+	], '\n'),
+	[uol([
+		uoli([*], [' '], [a], ['\n'])])]
+)
+----
+
+Lists are represented by their elements, separated by commas, and enclosed in square brackets.
+Strings are represented as lists of characters, some of them enclosed as double quotes.
+For example, the string `* abc` would be represented as `[*, ' ', a, b, c]`.
+
+A structure like `foo(A, B)` is a Prolog term.
+`foo` is the term "functor", and `A` and `B`are the term arguments.
+Term arguments can be terms themselves.
+
+In the example above, the `doc` functor has two parameters.
+The first parameter is a term with the `h` functor, representing the document header.
+The second parameter is a list of terms, representing the blocks that comprise the document.
+
+Prolog terms can represent any tree-like structure.
+
+Language parsers output is a tree-like structure called an abstract syntax tree (AST).
+Prolog parsers can generate terms to represent the parsing, which are esentially ASTs.
+
+In order to simplify the Prolog parser, the Prolog parser will not produce line/column information.
+Producing this information after parsing is only possible if the AST generated by the parser completely represents the original file.
+An AST completely represents a file if the file can be reconstructed entirely using the information in the AST.
+If we do this, by traversing the tree and keeping track of the position of all parsed elements, we can add the position information to the AST.
+
+== Parsing patterns
+
+To follow the next sections, change to the `prolog` directory in this repository, and execute the `swipl` program.
+
+First, execute `set_prolog_flag(double_quotes, chars).` to instruct SWI-Prolog that strings in double quotes are interpreted as lists of characters.
+
+The Prolog AsciiDoc parser uses Prolog modules.
+A Prolog module is a file containing Prolog source code, but that only exports public subset of predicates in the file.
+Like other module functionalities in other languages, this helps prevent name collisions.
+However, this also means that some predicates will not be available in the Prolog REPL.
+
+The following sections show the relevant predicates for experimenting.
+Use the `[user].` functionality used previously to load the predicates for experimentation.
+If you redefine predicates the Prolog REPL issues warnings.
+
+You can also create sample Prolog files.
+You can load Prolog files issuing a `consult(name).` command in the REPL, where `name` is the filename without the `.pl.` extension.
+
+=== Parsing individual characters and constructing simple terms
+
+Let's examine the `prolog/header.pl` Prolog source that parses an attribute entry.
+
+An attribute entry is a line of text.
+The current parser only parses "empty" attribute entries of the form `:attribute_name:`
+
+The attribute name is a string.
+The name starts with a letter, digit, or underscore.
+The name can contain additional letters, digits, underscores, or hyphens.
+
+The relevant rules are:
+
+[subs="+quotes,+macros"]
+----
+_from `char_types.pl`_
+
+hyphen('-') --> "-".
+
+word_character(F) --> [F], {char_type(F, alnum)}.
+word_character('pass:[_]') --> "pass:[_]".
+
+_from `header.pl`_
+
+attribute_entry(attr_en(":", AN, nothing, ":\n")) --> ":", attribute_name(AN), ":\n".
+attribute_name([F|R]) --> word_character(F), rest_of_attribute_name(R).
+rest_of_attribute_name([F|R]) --> (word_character(F); hyphen(F)), rest_of_attribute_name(R).
+rest_of_attribute_name([]) --> [].
+----
+
+Each preceding line is a DCG.
+A DCG "parses" a list into a Prolog value.
+
+The first set of rules parse strings (lists of characters) into single characters.
+These kinds of rules are useful to "classify" characters in different types.
+
+The second word character rule is straightforward.
+The right side of the DCG is `"_"`.
+This rule will only parse a single underscore from a string.
+`word_character` is the name of the DCG.
+The content inside the parenthesis is what the DCG "produces".
+In this case, it will produce a underscore character.
+
+The first word character rule is more involved.
+The `char_type(F, alnum)` in curly braces is a plain Prolog rule.
+This rule means "F is a character of type alphanumeric".
+For a DCG to be successful, the plain Prolog rules inside must be satisfied.
+
+If we "ignore" the plain Prolog rule, we have:
+
+----
+word_character(F) --> [F].
+----
+
+This rule matches a list of a single element; in this case, a string of a single character.
+The rule produces the same character it matched.
+
+Adding the plain Prolog rule, this DCG parses any alphanumeric character or a hyphen, producing the same character.
+
+
+You can test the DCG.
+
+[subs=+quotes]
+----
+?- *phrase(word_character(X), Y).*
+X = '0',
+Y = ['0'] **;**
+X = '1',
+Y = ['1'] **;**
+X = '2',
+Y = ['2'] **.**
+----
+
+If you press kbd:[;] repeatedly, SWI-Prolog will iterate over the strings matched by the rule.
+`char_type(_, alnum)` matches any Unicode alphanumeric character, including diacritics and others, so it matches a huge amount of characters.
+Eventually, SWI-Prolog would also print a hyphen.
+
+[subs="+quotes,+macros"]
+----
+?- *phrase(word_character(X), "a").*
+X = a **.**
+
+?- *phrase(word_character(X), "1").*
+X = '1' **.**
+
+?- *phrase(word_character(X), "pass:[_]").*
+X = 'pass:[_]'**.**
+
+?- *phrase(word_character(X), "-")*.
+false.
+----
+
+So `word_character` parses letters, numbers and underscores, but not other characters such as hyphens.
+
+Let's look at the `rest_of_attribute_name` rule.
+This rule parses the second and following characters of an attribute name, which can be word characters (letters, digits, underscores) or hyphens.
+An attribute name can be a single character, so the "rest" of an attribute name can be "empty".
+
+The `rest_of_attribute_name` parses a string into another string.
+
+The second rule parses an empty list (or empty string) into an empty list (or empty string).
+
+The first rule parses a list of characters.
+
+The right-hand side of a DCG can have multiple elements separated by commas.
+The rule parses all of the elements sequentially.
+The first element of the rule is a clause separated by `;` (or).
+So the rule first parses either a word character or a hyphen `F`.
+Then the rule parses a rest of attribute name recursively, `R`.
+The rule produces a list with `F` as the first element (head) and `R` as the rest of the list (tail).
+
+[subs=+quotes]
+----
+?- *phrase(rest_of_attribute_name(X), "abc").*
+X = [a, b, c] **.**
+----
+
+When parsing `abc`, the first rule matches `a` as a word character, then tries to match `bc` as a rest of attribute name again.
+This happens recursively until the entire `abc` string is matched.
+
+The `attribute_name` is very much the same.
+The `attribute_name` first matches a word character (not including hyphens) and then a rest of attribute name (including hyphens).
+Note that as `rest_of_attribute_name` parses an empty string, an attribute name might be composed of a single word character.
+
+Finally, the `attribute_entry` rule composes the above to match a line with an attribute entry.
+
+----
+attribute_entry(attr_en(":", AN, nothing, ":\n")) --> ":", attribute_name(AN), ":\n".
+----
+
+The rule matches `:`, followed by an attribute name `AN`, followed by `:` and a new line.
+The rule produces a term; the first argument is a `:`, the second argument is the attribute name `AN`, then "nothing" (this is to accomodate future expansion of full attribute entries), then `:\n`.
+
+We can test the rule.
+
+[subs=+quotes]
+----
+?- *phrase(attribute_entry(X), ":abc:\n").*
+X = attr_en([:], [a, b, c], nothing, [:, '\n']) **.**
+
+?- *phrase(attribute_entry(X), ":-abc:\n").*
+false.
+
+?- *phrase(attribute_entry(X), ":abc:").*
+false.
+----
+
+The rule does not parse either attribute entries with an attribute name starting with a hyphen, nor partial lines.
+
+=== Using Prolog rules
+
+We have seen before that in DCGs, we can add general Prolog logic to specify more complex parsing rules.
+For example, the rule for constrained formatting marks contains the following DCG:
+
+[subs=+quotes]
+----
+constrained_formatting_mark([Pre, cfm(F, T, F)]), [Post] -->
+    pre_constrained_formatting_mark(pre_cfm(Pre)),
+    formatting_mark(F),
+    nested_line_parts(T, F),
+    *{not_wrapped_in_spaces(T)}*,
+    formatting_mark(F),
+    post_constrained_formatting_mark(post_cfm(Post)).
+----
+
+A constrained formatting mark in AsciiDoc is using a single pair of symbols to wrap a piece of content to indicate some styling.
+For example, a single asterisk at the beginning of content and at the end, styles the content as bold.
+As this formatting uses a single formatting mark, this would make a single asterisk have meaning everywhere in AsciiDoc.
+To make things easier, constrained formatting marks only apply if the formatting marks are in specific positions.
+For example, the text enclosed in constrained formatting marks cannot begin or end in spaces.
+The `not_wrapped_in_spaces` predicate only accepts as a parameter pieces of text satisfying this condition.
+
+The parameter `T` above is the list of characters that is being considered as the content of the constrained formatting marks.
+Prolog code in DCGs must be enclosed in curly braces.
+
+In this case, we use the following predicate:
+
+----
+not_wrapped_in_spaces(X) :- not_prefixed_by_spaces(X), reverse(X, RX), not_prefixed_by_spaces(RX).
+not_prefixed_by_spaces([' '|_]) :- !, fail.
+not_prefixed_by_spaces(_).
+----
+
+[CAUTION]
+====
+This Prolog code might not be entirely optimal nor idiomatic.
+====
+
+This is read roughly like "`X` is not wrapped in spaces if `X` is not prefixed by spaces, if `RX` is `X` reversed, and `RX` is not prefixed by spaces either".
+
+The `not_prefixed_by_spaces` predicate in turn is implemented using pattern matching.
+With pattern matching, we simplify the code by having several predicates that take arguments in slightly different forms (or patterns).
+
+As the predicate works on lists, we use "difference lists" for the pattern matching.
+`[X|Y]` in general is a list whose first element is `X`, and the rest of the list is `Y`.
+
+[subs=+quotes]
+----
+?- *[X|Y] = [1,2,3].*
+X = 1,
+Y = [2, 3]**.**
+----
+
+Note the `X` is a number, but `Y` is a *list* of numbers.
+
+.About list differences
+****
+Other languages use the terms head and tail instead.
+The first element of a list is the head.
+The rest of the list is the tail.
+****
+
+The patterns matched in the `not_prefixed_by_spaces` predicate are:
+
+`[' '|_]`::
+A list whose first element is a space, and the rest of the list is "any" list.
+(The underscore is a common convention to specify a variable that can unify with anything.)
+
+`_`::
+Any list.
+
+The first predicate will match a list of chars starting by a space (even if it is a single space; the rest of the list can be an empty list).
+If this pattern matches, then the following Prolog executes `!, fail`.
+
+This Prolog snippet means "do not try any other alternatives to this predicate, and fail.
+This means that if `not_prefixed_by_spaces` is applied to a list starting by a space, it will fail and no other rules will be tried.
+
+.About the cut operator
+****
+The cut operator is key to parsing the flexible syntax of AsciiDoc.
+Some text could be interpreted as two different AsciiDoc structures.
+
+For example, a single asterisk can be the beginning of bold, or it can be an asterisk.
+
+The cut operator allow us to select one interpretation of AsciiDoc.
+When a predicate matches and the cut operator is applied, no alternative predicates will be tested as alternatives.
+
+Commonly, Prolog code might match several predicates, and Prolog will produce multiple solutions.
+When our logic requires us to select just one option from many, we use the cut operator.
+o
+`!, fail` is also a common pattern to make a predicate fail and prevent other alternatives to be taken.
+This is used to negate (as in our example above, "*not* prefixed by spaces").
+
+The `\+` operator can also be used to negate a term.
+****
+
+The `not_prefixed_by_spaces(_)` predicate does not have any condition, so it always succeeds.
+This makes the predicate fail for lists starting with spaces, and succeed for any other list.
+
+==== Matching variables
+
+The predicate above also illustrates another common Prolog pattern.
+
+[subs=+quotes]
+----
+constrained_formatting_mark([Pre, cfm(*F*, T, *F*)]), [Post] -->
+    pre_constrained_formatting_mark(pre_cfm(Pre)),
+    formatting_mark(*F*),
+    nested_line_parts(T, F),
+    {not_wrapped_in_spaces(T)},
+    formatting_mark(*F*),
+    post_constrained_formatting_mark(post_cfm(Post)).
+----
+
+The variable `F` appears in several places of the DCG.
+Prolog will only match the rule if it can find values for `F` that satisfy all predicates that use the `F` variable.
+
+The `formatting_mark` predicate only is satisfied when `F` is one of the characters that can be used for styling in AsciiDoc.
+For example, an asterisk for bold, or an underscore for italics.
+
+The two `formatting_mark` predicates use the same variable `F` and they wrap the Prolog rule for the content of the formatting.
+As they use the same variable, a formatting mark must start and end with the same formatting mark.
+So a formatting mark cannot start with an underscore and end with an asterisk.
+
+Moreover, on the left of the DCG, the `F` variable appears twice.
+When this rule is parsed, a `cfm` term will be produced, with the first and third arguments being the formatting mark (which must match).
+
+By using the same variable in multiple places, we can ensure that some content is repeated identically for a rule to match.
+
+==== Appending
+
+The built-in `append` predicate is used to manipulate strings.
+The "bidirectional" operation of Prolog means that `append` checks that appending some lists produces a different list.
+This can be used also to verify if a list prefixes another, or if a list contains another.
+
+The three-argument version of `append` (sometimes written as `append/3`) means "the third argument is the first two arguments concatenated".
+We can use it to do the following matching.
+
+[subs=+quotes]
+----
+?- *append([1], [2], X).*
+X = [1, 2].
+
+?- *append(X, [2], [1,2]).*
+X = [1] **;**
+false.
+
+?- *append([1], X, [1,2]).*
+X = [2].
+----
+
+This can be read as appending, "finding" prefixes and suffixes, or "removing" prefixes and suffixes.
+
+The two-argument version of `append` is even more flexible.
+The first argument is a list of lists, and the last argument is the concatenation of the previous arguments.
+
+[subs=+quotes]
+----
+?- *append([[1,2], [3,4], [5,6]], X).*
+X = [1, 2, 3, 4, 5, 6].
+----
+
+This can also be used, for example, to check if a list contains a given sublist.
+
+[subs=+quotes]
+----
+?- *append([\_, [a, b], _], [a, a, b, b]).*
+true **;**
+false.
+
+?- *append([_, [a, b], _], [a, a, c, b]).*
+false.
+----
+
+These predicates only succeed if the last argument can be constructed by appending "anything", the list `[a,b]`, and "anything".
+
+[CAUTION]
+====
+The `append` predicate is very generic, and can be used to verify many constraints.
+However, its genericity also makes it slow.
+Many uses of `append` can be replaced with more specific predicates.
+
+For example, to check if a list contains an element (not a list), use the `member` predicate.
+To check if a list starts by a particular lists, you can use list differences.
+
+[subs=+quotes]
+----
+?- *[a|\_] = [a, b, c].*
+true.
+
+?- *[a|_] = [b, c].*
+false.
+
+?- *[a,b|\_] = [a, b, c].*
+true.
+
+?- *[a,b|_] = [a, b].*
+true.
+
+?- *[a,b|\_] = [a, c].*
+false.
+
+?- *[a,b|_] = [a].*
+false.
+
+?- *[a|X] = [a, b].*
+X = [b].
+
+?- *[a|X] = [a, b, c].*
+X = [b, c].
+----
+====
+
+=== Peeking
+
+A useful tool when parsing is peeking.
+Peeking means looking at the following content, without consuming it.
+This way we can create DCGs that match only if they are followed by a specific content, but this content is later parsed using a different rule.
+
+For example, a further limitation of AsciiDoc constrained formatting marks is that they must be followed by space, punctuation, or a new line.
+(There is a further refinement to this, but we will not explain it now.)
+
+This following character is not part of the constrained formatting mark itself, no styling is applied to it.
+So we peek the following character, verify that it's one of the required characters, and "put it back" to be parsed by the next rule.
+
+[subs=+quotes]
+----
+constrained_formatting_mark([Pre, cfm(F, T, F)])**, [Post]** -->
+    _... omitted..._
+    post_constrained_formatting_mark(post_cfm(Post)).
+----
+
+The `post_constrained_mark` predicate is like any of our other predicates that parse a list of characters, but putting `, [Post]` at the end of the left side of the DCG means that after parsing that piece of content, we "put it back" in the content to be parsed.
+
+=== Matching multiple elements
+
+We already saw in the `rest_of_attribute_name` DCG how to match multiple elements of the same type, and produce a list.
+
+The `blocks` and `unordered_list_predicates` are clearer exmaples.
+
+----
+blocks([X|XS]) --> block(X), blocks(XS).
+blocks([]) --> [].
+
+unordered_list([X|XS]) --> unordered_list_item(X), unordered_list(XS).
+unordered_list([X]) --> unordered_list_item(X).
+----
+
+Both match several items of the same type (`block` and `unordered_list_item`).
+They are slightly different, because `blocks` can match zero blocks and `unordered_list` must match at least one item.
+
+`blocks([X|XS]) pass:[-->] block(X), blocks(XS)` means blocks produces a list `[X|XS]`, where `X` is a block, and `XS` is also "some" blocks.
+This means that `blocks` will parse the beginning of the content until it matches a block, and then feed the rest of content to itself.
+The `blocks([]) pass:[-->] []` DCG matches an empty list, and produces an empty list.
+
+These DCGs basically mean "match as many blocks as possible, and produce them as a list".
+
+The `unordered_list` DCGs are identical, but as there is no DCG that matches the empty list, at least a list item must be matched.
+
+[CAUTION]
+====
+Be careful with DCGs that can match the empty list.
+
+If an outer DCG can match an inner DCG that matches the empty list, and the inner DCG can be matched multiple times, then Prolog will enter an infinite loop.
+
+You can always match the empty list, and most notably, you can match it an infinite number of times.
+
+In the preceding example, an unordered list is a block.
+If an empty list could be an empty list, then the `blocks` DCG could match infinite "empty unordered lists".
+(An AsciiDoc list with no elements does not make much sense either.)
+====
+
+== Parsing hacks
+
+I am not sure that the following patterns cannot be achieved in a better way.
+
+=== Adding virtual elements
+
+As we have seen, AsciiDoc constrained formatting marks are only parsed if they are surrounded by specific content.
+A constrained formatting mark is only parsed after a space, and it must be followed by a space, punctuation, or new line.
+
+But there are two subtle additional rules:
+
+* They can also be parsed at the beginning and end of a file.
+* They can be nested, and furthermore they can "cuddle"; a constrained formatting mark can appear immediately after an outer formatting mark starts, and they can end consecutively.
++
+----
+*_a_*
+*_a b_*
+*_a_ b*
+*a _b_*
+----
+
+A possible way to solve this problem is to "add" some artificial virtual elements.
+
+To add the virtual elements, we do something like this:
+
+----
+parse_line(X, Y) :- append([[bl|X], [el]], XW), phrase(line_parts(Y), XW).
+----
+
+We introduce the `bl` and `el` atoms to indicate "begin of line" and "end of line".
+(Note that these names are not entirely appropriate.)
+The predicate that parses a line uses the `append` predicate to wrap `X` (the content to be parsed) in `bl` and `el`.
+
+Further DCGs that describe what can come before and after a constrained formatting mark match `bl` or `el`:
+
+----
+pre_constrained_formatting_mark(pre_cfm(X)) --> space(X).
+pre_constrained_formatting_mark(pre_cfm(bl)) --> [bl].
+
+post_constrained_formatting_mark(post_cfm(X)) --> space(X).
+post_constrained_formatting_mark(post_cfm(X)) --> punct(X).
+post_constrained_formatting_mark(post_cfm(X)) --> new_line(X).
+post_constrained_formatting_mark(post_cfm(el)) --> [el].
+----
+
+Note that we added `bl` and `el` before invoking the `line_parts` DCG.
+The `line_parts` DCG wraps the `line_parts_raw` DCG that does the parsing, and then removes the `bl` and `el` elements.
+
+----
+line_parts(XRFT, B, A) :- line_parts_raw(XR, B, A), append(XR, XRF), append([bl|XRFT], [el], XRF).
+----
+
+=== Fake DCGs
+
+DCGs are just a shortcut to specify parsing rules using a more convenient syntax.
+Prolog converts DCGs to regular Prolog predicates that execute normally.
+This conversion adds two additional arguments to the predicate that are used to propagate the state of the parser (what has been parsed and what remains to be parsed) across the different parsing rules.
+
+The following predicates:
+
+----
+nested_line_parts(X, F, B, A) :- append([B1, F, B2], B), append([[bl|B1], [el], F, B2], NB), line_parts(X, NB, A).
+line_parts(XRFT, B, A) :- line_parts_raw(XR, B, A), append(XR, XRF), append([bl|XRFT], [el], XRF).
+----
+
+Are Prolog predicates designed to be used as DCGs.
+The `B` (before) and `A` (after) parameters are the same two parameters that Prolog adds to a DCG.
+
+The `line_parts` predicate invokes directly the `line_parts_raw` DCG by passing in the `B` and `A` parameters, but performs a manipulation to introduce virtual `bl` and `el` elements to underlying parser.
+
+`nested_line_parts` does similar things, but it also manipulates the "before" argument to the DCG.
+
+== Testing Prolog
+
+Parsers can be fragile, and changes can break working code in subtle ways.
+Writing tests can help detect such breakage, and also provides useful documentation about the behavior of predicates.
+
+SWI-Prolog has https://www.swi-prolog.org/pldoc/doc_for?object=section(%27packages/plunit.html%27)[a built-in testing framework].
+
+To create a test suite:
+
+* https://www.swi-prolog.org/pldoc/man?section=project-special-files[Create a `load.pl` module that loads the parser.]
+* Create a `tests.plt` file that uses the `load.pl` module and the `load_test_files` predicate to load all tests.
+* Create test files that exert individual modules of the parser.
+
+You can then execute all tests by running the `swipl -g run_tests -t halt tests.plt` command.
+
+Test cases are simple rules like:
+
+----
+test(header) :- phrase(header(X), ":hola:\n\n"), !,
+                assertion(X = h([attr_en([:], [h, o, l, a], nothing, [:, '\n'])], '\n')).
+----
+
+The rules use the `phrase` predicate to invoke a specific rule, and use the `assertion` predicate to validate the AST.
+
+== Interfacing Prolog and Python
+
+While Prolog is a great fit for writing parsing code, if you do not know Prolog, some parts of the parser might be easier to write in a traditional imperative language.
+
+Using https://www.swi-prolog.org/packages/mqi/prologmqi.html[the `swiplserver` library], Python programs can invoke Prolog parsers.
+
+Refer to the `pasc.py` Python source code for an example on how to do this.
+
+`pasc.py` converts the Prolog term representing the AST into Python objects, does some postprocessing, adds position information to the AST, and outputs a JSON file describing the AST.
