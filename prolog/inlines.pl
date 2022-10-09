@@ -31,7 +31,6 @@ constrained_formatting_mark([Pre, cfm(F, T, F)]), [Post] -->
     post_constrained_formatting_mark(post_cfm(Post)).
 
 not_wrapped_in_spaces(X) :- not_prefixed_by_spaces(X), reverse(X, RX), not_prefixed_by_spaces(RX).
-not_prefixed_by_spaces([bl|X]) :- !, not_prefixed_by_spaces(X).
 not_prefixed_by_spaces([' '|_]) :- !, fail.
 not_prefixed_by_spaces(_).
 
