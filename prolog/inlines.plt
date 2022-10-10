@@ -19,9 +19,9 @@ test(cfm_no_constraint_outside) :- parse_line("a*b*", X), !,
 test(cfm_no_constraint_inside) :- parse_line("* a *", X), !,
 				  assertion(X == [*, ' ', a, ' ', *]).
 test(cfm_no_constraint_left) :- parse_line("*a *", X), !,
-				  assertion(X == [*, a, ' ', *]).
+				assertion(X == [*, a, ' ', *]).
 test(cfm_no_constraint_right) :- parse_line("* a*", X), !,
-				  assertion(X == [*, ' ', a, *]).
+				 assertion(X == [*, ' ', a, *]).
 
 test(ucfm) :- parse_line("aaaaa**b**", X), !,
 	      assertion(X == [a, a, a, a, a, ucfm([*], [*], [b], [*], [*])]).
