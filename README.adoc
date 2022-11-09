@@ -28,10 +28,18 @@ Right now the parser is very limited. It can parse files like `sample.adoc`:
 Refer to link:parsing-asciidoc-in-prolog.adoc[parsing AsciiDoc in Prolog] for further details.
 
 You need https://python-poetry.org/[Poetry] and https://www.swi-prolog.org/[SWI-Prolog] to run the parser.
-To execute the parser, run the following command within a clone of this repository.
+
+You can install the parser with pipx by running:
 
 ----
-$ poetry run python pasc.py sample.adoc | python -m json.tool
+$ pipx install git+https://github.com/alexpdp7/prolog-asciidoc.git
+----
+
+To execute the parser, run the pasc command.
+For development, use `poetry run` like:
+
+----
+$ poetry run pasc sample.adoc | python -m json.tool
 {
     "type": "Document",
     "header": {

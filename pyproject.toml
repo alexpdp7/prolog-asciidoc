@@ -3,12 +3,21 @@ name = "prolog-asciidoc"
 version = "0.1.0"
 description = ""
 authors = ["alex <alex@pdp7.net>"]
+packages = [
+	 { include = "pasc.py" },
+]
+include = [
+	{ path = "prolog", format = ["sdist", "wheel"] },
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
 swiplserver = "^1.0.2"
 
 [tool.poetry.dev-dependencies]
+
+[tool.poetry.scripts]
+pasc = 'pasc:main'
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

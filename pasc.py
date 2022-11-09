@@ -1,4 +1,5 @@
 import json
+import pathlib
 
 from swiplserver import PrologMQI, PrologThread
 
@@ -6,7 +7,8 @@ from swiplserver import PrologMQI, PrologThread
 def call_prolog_parser(f):
     with PrologMQI() as mqi:
         with mqi.create_thread() as prolog_thread:
-            prolog_thread.query('consult("prolog/document")')
+            prolog_path = pathlib.Path(__file__).parent / "prolog"
+            prolog_thread.query(f'consult("{prolog_path}/document")')
             result = prolog_thread.query(f'parse_file("{f}", X)')
             assert len(result) == 1, "ambiguous parse"
             return result[0]["X"]
@@ -210,9 +212,13 @@ FUNCTOR_TO_CLASS = {
 }
 
 
-if __name__ == "__main__":
+def main():
     import sys
 
-    
+
     doc = parse_asciidoc(sys.argv[1])
     print(NodeJSONEncoder().encode(doc))
+
+
+if __name__ == "__main__":
+    main()
