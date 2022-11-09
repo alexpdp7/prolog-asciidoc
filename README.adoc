@@ -2,18 +2,6 @@ Sample parsing of some AsciiDoc features.
 
 Works on SWI Prolog, might work with Scryer Prolog.
 
-Differences from AsciiDoctor:
-
-* `pass:[_*a*_]` is not "valid" AsciiDoctor:
-- https://asciidoc.zulipchat.com/#narrow/stream/335219-asciidoc-lang/topic/Clarification.20on.20constrained.20formatting.20marks/near/299416275
-- https://docs.asciidoctor.org/asciidoc/latest/text/bold/#mixing-bold-with-other-formatting
-
-Run tests with:
-
-----
-$ ( cd prolog && swipl -g run_tests -t halt tests.plt )
-----
-
 Right now the parser is very limited. It can parse files like `sample.adoc`:
 
 ----
@@ -27,6 +15,8 @@ Right now the parser is very limited. It can parse files like `sample.adoc`:
 
 Refer to link:parsing-asciidoc-in-prolog.adoc[parsing AsciiDoc in Prolog] for further details.
 
+= Installing
+
 You need https://python-poetry.org/[Poetry] and https://www.swi-prolog.org/[SWI-Prolog] to run the parser.
 
 You can install the parser with pipx by running:
@@ -35,9 +25,12 @@ You can install the parser with pipx by running:
 $ pipx install git+https://github.com/alexpdp7/prolog-asciidoc.git
 ----
 
+= Running
+
 To execute the parser, run the pasc command.
 For development, use `poetry run` like:
 
+[subs=+quotes]
 ----
 $ poetry run pasc sample.adoc | python -m json.tool
 {
@@ -59,321 +52,25 @@ $ poetry run pasc sample.adoc | python -m json.tool
                         "line": 1,
                         "column": 0
                     }
-                }
-            }
-        ],
-        "pos": {
-            "begin": {
-                "character": 0,
-                "line": 0,
-                "column": 0
-            },
-            "end": {
-                "character": 9,
-                "line": 2,
-                "column": 0
-            }
-        }
-    },
-    "blocks": [
-        {
-            "type": "UnorderedList",
-            "items": [
-                {
-                    "type": "UnorderedListItem",
-                    "content": [
-                        {
-                            "type": "Text",
-                            "text": "This is a list.",
-                            "pos": {
-                                "begin": {
-                                    "character": 11,
-                                    "line": 2,
-                                    "column": 2
-                                },
-                                "end": {
-                                    "character": 26,
-                                    "line": 2,
-                                    "column": 17
-                                }
-                            }
-                        }
-                    ],
-                    "pos": {
-                        "begin": {
-                            "character": 9,
-                            "line": 2,
-                            "column": 0
-                        },
-                        "end": {
-                            "character": 27,
-                            "line": 3,
-                            "column": 0
-                        }
-                    }
-                },
-                {
-                    "type": "UnorderedListItem",
-                    "content": [
-                        {
-                            "type": "Text",
-                            "text": "This item ",
-                            "pos": {
-                                "begin": {
-                                    "character": 29,
-                                    "line": 3,
-                                    "column": 2
-                                },
-                                "end": {
-                                    "character": 39,
-                                    "line": 3,
-                                    "column": 12
-                                }
-                            }
-                        },
-                        {
-                            "type": "ConstrainedFormattingMark",
-                            "open": "*",
-                            "content": [
-                                {
-                                    "type": "Text",
-                                    "text": "has",
-                                    "pos": {
-                                        "begin": {
-                                            "character": 40,
-                                            "line": 3,
-                                            "column": 13
-                                        },
-                                        "end": {
-                                            "character": 43,
-                                            "line": 3,
-                                            "column": 16
-                                        }
-                                    }
-                                }
-                            ],
-                            "close": "*",
-                            "pos": {
-                                "begin": {
-                                    "character": 39,
-                                    "line": 3,
-                                    "column": 12
-                                },
-                                "end": {
-                                    "character": 44,
-                                    "line": 3,
-                                    "column": 17
-                                }
-                            }
-                        },
-                        {
-                            "type": "Text",
-                            "text": " emphasis",
-                            "pos": {
-                                "begin": {
-                                    "character": 44,
-                                    "line": 3,
-                                    "column": 17
-                                },
-                                "end": {
-                                    "character": 53,
-                                    "line": 3,
-                                    "column": 26
-                                }
-                            }
-                        }
-                    ],
-                    "pos": {
-                        "begin": {
-                            "character": 27,
-                            "line": 3,
-                            "column": 0
-                        },
-                        "end": {
-                            "character": 54,
-                            "line": 4,
-                            "column": 0
-                        }
-                    }
-                },
-                {
-                    "type": "UnorderedListItem",
-                    "content": [
-                        {
-                            "type": "Text",
-                            "text": "This item ",
-                            "pos": {
-                                "begin": {
-                                    "character": 56,
-                                    "line": 4,
-                                    "column": 2
-                                },
-                                "end": {
-                                    "character": 66,
-                                    "line": 4,
-                                    "column": 12
-                                }
-                            }
-                        },
-                        {
-                            "type": "ConstrainedFormattingMark",
-                            "open": "_",
-                            "content": [
-                                {
-                                    "type": "Text",
-                                    "text": "has",
-                                    "pos": {
-                                        "begin": {
-                                            "character": 67,
-                                            "line": 4,
-                                            "column": 13
-                                        },
-                                        "end": {
-                                            "character": 70,
-                                            "line": 4,
-                                            "column": 16
-                                        }
-                                    }
-                                },
-                                {
-                                    "type": "UnconstrainedFormattingMark",
-                                    "open": "**",
-                                    "content": [
-                                        {
-                                            "type": "Text",
-                                            "text": "more",
-                                            "pos": {
-                                                "begin": {
-                                                    "character": 72,
-                                                    "line": 4,
-                                                    "column": 18
-                                                },
-                                                "end": {
-                                                    "character": 76,
-                                                    "line": 4,
-                                                    "column": 22
-                                                }
-                                            }
-                                        }
-                                    ],
-                                    "close": "**",
-                                    "pos": {
-                                        "begin": {
-                                            "character": 70,
-                                            "line": 4,
-                                            "column": 16
-                                        },
-                                        "end": {
-                                            "character": 78,
-                                            "line": 4,
-                                            "column": 24
-                                        }
-                                    }
-                                }
-                            ],
-                            "close": "_",
-                            "pos": {
-                                "begin": {
-                                    "character": 66,
-                                    "line": 4,
-                                    "column": 12
-                                },
-                                "end": {
-                                    "character": 79,
-                                    "line": 4,
-                                    "column": 25
-                                }
-                            }
-                        },
-                        {
-                            "type": "Text",
-                            "text": " complex formatting.",
-                            "pos": {
-                                "begin": {
-                                    "character": 79,
-                                    "line": 4,
-                                    "column": 25
-                                },
-                                "end": {
-                                    "character": 99,
-                                    "line": 4,
-                                    "column": 45
-                                }
-                            }
-                        }
-                    ],
-                    "pos": {
-                        "begin": {
-                            "character": 54,
-                            "line": 4,
-                            "column": 0
-                        },
-                        "end": {
-                            "character": 100,
-                            "line": 5,
-                            "column": 0
-                        }
-                    }
-                },
-                {
-                    "type": "UnorderedListItem",
-                    "content": [
-                        {
-                            "type": "Text",
-                            "text": "And we are * error tolerant.",
-                            "pos": {
-                                "begin": {
-                                    "character": 102,
-                                    "line": 5,
-                                    "column": 2
-                                },
-                                "end": {
-                                    "character": 130,
-                                    "line": 5,
-                                    "column": 30
-                                }
-                            }
-                        }
-                    ],
-                    "pos": {
-                        "begin": {
-                            "character": 100,
-                            "line": 5,
-                            "column": 0
-                        },
-                        "end": {
-                            "character": 131,
-                            "line": 6,
-                            "column": 0
-                        }
-                    }
-                }
-            ],
-            "pos": {
-                "begin": {
-                    "character": 9,
-                    "line": 2,
-                    "column": 0
-                },
-                "end": {
-                    "character": 131,
-                    "line": 6,
-                    "column": 0
-                }
-            }
-        }
-    ],
-    "pos": {
-        "begin": {
-            "character": 0,
-            "line": 0,
-            "column": 0
-        },
-        "end": {
-            "character": 131,
-            "line": 6,
-            "column": 0
-        }
-    }
-}
+_..._
 ----
+
+= Differences from AsciiDoctor
+
+* `pass:[_*a*_]` is not "valid" AsciiDoctor:
+- https://asciidoc.zulipchat.com/#narrow/stream/335219-asciidoc-lang/topic/Clarification.20on.20constrained.20formatting.20marks/near/299416275
+- https://docs.asciidoctor.org/asciidoc/latest/text/bold/#mixing-bold-with-other-formatting
+
+= Development
+
+== Testing
+
+Run tests with:
+
+----
+$ ( cd prolog && swipl -g run_tests -t halt tests.plt )
+----
+
+== Building and pushing images
+
+$ python3 -c "import build ; build.build_image_and_push()"
