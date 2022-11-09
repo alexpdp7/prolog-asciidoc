@@ -17,7 +17,9 @@ Refer to link:parsing-asciidoc-in-prolog.adoc[parsing AsciiDoc in Prolog] for fu
 
 = Installing
 
-You need https://python-poetry.org/[Poetry] and https://www.swi-prolog.org/[SWI-Prolog] to run the parser.
+A container image is available at `quay.io/alexpdp7/prolog-asciidoc:main`.
+
+To run in your system you need https://www.swi-prolog.org/[SWI-Prolog].
 
 You can install the parser with pipx by running:
 
@@ -28,11 +30,10 @@ $ pipx install git+https://github.com/alexpdp7/prolog-asciidoc.git
 = Running
 
 To execute the parser, run the pasc command.
-For development, use `poetry run` like:
 
 [subs=+quotes]
 ----
-$ poetry run pasc sample.adoc | python -m json.tool
+$ pasc sample.adoc | python -m json.tool
 {
     "type": "Document",
     "header": {
@@ -81,4 +82,6 @@ $ ( cd prolog && swipl -g run_tests -t halt tests.plt )
 
 == Building and pushing images
 
+----
 $ python3 -c "import build ; build.build_image_and_push()"
+----
