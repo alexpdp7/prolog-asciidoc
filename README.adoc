@@ -55,6 +55,14 @@ $ poetry run pasc sample.adoc | python -m json.tool
 _..._
 ----
 
+You can also use a container:
+
+----
+$ podman run --rm -v $(pwd):/pwd -w /pwd --security-opt label=disable quay.io/alexpdp7/prolog-asciidoc:main pasc sample.adoc
+----
+
+Refer to https://github.com/alexpdp7/cmdainer/[cmdainer] for a wrapper that executes commands in container images.
+
 = Differences from AsciiDoctor
 
 * `pass:[_*a*_]` is not "valid" AsciiDoctor:
