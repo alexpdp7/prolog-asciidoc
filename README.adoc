@@ -62,7 +62,11 @@ You can also use a container:
 $ podman run --rm -v $(pwd):/pwd -w /pwd --security-opt label=disable quay.io/alexpdp7/prolog-asciidoc:main pasc sample.adoc
 ----
 
-Refer to https://github.com/alexpdp7/cmdainer/[cmdainer] for a wrapper that executes commands in container images.
+With https://github.com/alexpdp7/cmdainer/[cmdainer], run the following command to create a wrapper for the container.
+
+----
+$ cmdainer add-wrapper prolog-asciidoc pasc quay.io/alexpdp7/prolog-asciidoc:main
+----
 
 = Differences from AsciiDoctor
 
