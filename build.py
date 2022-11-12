@@ -31,3 +31,7 @@ def build_images_and_push():
         assert tag != "dirty", "attempting to push dirty image"
         _run(["podman", "push", f"prolog-asciidoc:{tag}", f"quay.io/alexpdp7/prolog-asciidoc:{tag}"])
     return tags
+
+
+def test_prolog():
+    _run(["swipl", "-g", "run_tests", "-t", "halt", "tests.plt"], cwd="prolog")
