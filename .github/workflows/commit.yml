@@ -9,4 +9,4 @@ jobs:
       - env:
           QUAY_IO_DOCKER_CONFIG: ${{ secrets.QUAY_IO_DOCKER_CONFIG }}
         run: echo "${QUAY_IO_DOCKER_CONFIG}" >${XDG_RUNTIME_DIR}/containers/auth.json
-      - run: ./build.py
+      - run: python3 -c "import build ; build.build_images_and_push()"
