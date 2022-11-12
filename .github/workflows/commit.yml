@@ -1,0 +1,12 @@
+name: commit
+on: [push]
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: mkdir -p ${XDG_RUNTIME_DIR}/containers/
+      - env:
+          QUAY_IO_DOCKER_CONFIG: ${{ secrets.QUAY_IO_DOCKER_CONFIG }}
+        run: echo "${QUAY_IO_DOCKER_CONFIG}" >${XDG_RUNTIME_DIR}/containers/auth.json
+      - run: ./build.py
