@@ -81,7 +81,7 @@ $ cmdainer add-wrapper prolog-asciidoc pasc quay.io/alexpdp7/prolog-asciidoc:mai
 Run tests with:
 
 ----
-$ ( cd prolog && swipl -g run_tests -t halt tests.plt )
+$ python3 -c "import build ; build.test_prolog()"
 ----
 
 == Building and pushing images
