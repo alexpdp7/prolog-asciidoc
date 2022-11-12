@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import itertools
 import subprocess
 
@@ -28,3 +30,7 @@ def build_image_and_push():
     for tag in tags:
         assert tag != "dirty", "attempting to push dirty image"
         subprocess.run(["podman", "push", f"prolog-asciidoc:{tag}", f"quay.io/alexpdp7/prolog-asciidoc:{tag}"], check=True)
+
+
+if __name__ == "__main__":
+    build_image_and_push()
