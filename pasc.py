@@ -149,9 +149,13 @@ class Document(Node):
 class Header(Node): 
     def __init__(self, header_lines, new_line):
         self.header_lines = prolog_to_object(header_lines)
-        assert new_line == "\n"
+        if self.header_lines == "empty":
+            self.header_lines = []
+        assert new_line in ("\n", "empty")
 
     def components(self):
+        if self.header_lines == []:
+            return []
         return [self.header_lines, "\n"]
 
 class AttributeEntry(Node):
