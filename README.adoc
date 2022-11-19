@@ -68,6 +68,16 @@ With https://github.com/alexpdp7/cmdainer/[cmdainer], run the following command 
 $ cmdainer add-wrapper prolog-asciidoc pasc quay.io/alexpdp7/prolog-asciidoc:main
 ----
 
+`pasc` takes a single argument
+The argument is the path to the file to parse.
+If the file is `-`, then `pasc` parses from standard input.
+
+You can use `-` to use the container without requiring volumes:
+
+----
+$ cat sample.adoc | podman run --rm -i quay.io/alexpdp7/prolog-asciidoc:main pasc -
+----
+
 = Differences from AsciiDoctor
 
 * `pass:[_*a*_]` is not "valid" AsciiDoctor:
