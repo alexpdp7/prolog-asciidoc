@@ -46,6 +46,8 @@ unconstrained_formatting_mark([ucfm(F, F, T, F, F)]) -->
 
 char([T]) --> [T].
 
+line_part(_) --> "\n\n", !, {fail}.
+line_part(_) --> "\n* ", !, {fail}.
 line_part(X) --> unconstrained_formatting_mark(X), !.
 line_part(X) --> constrained_formatting_mark(X), !.
 line_part(X) --> char(X), !.

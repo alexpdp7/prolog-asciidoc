@@ -168,6 +168,15 @@ class AttributeEntry(Node):
     def components(self):
         return [":", self.attribute_name, ":\n"]
 
+
+class BlockSeparator(Node):
+    def __init__(self, content):
+        assert content == ["\n", "\n"]
+
+    def components(self):
+        return ["\n\n"]
+
+
 class UnorderedList(Node):
     def __init__(self, items):
         self.items = prolog_to_object(items)
@@ -176,14 +185,30 @@ class UnorderedList(Node):
         return [self.items]
 
 class UnorderedListItem(Node):
-    def __init__(self, bullet, sep, content, end):
+    def __init__(self, bullet, sep, content):
         assert bullet == ["*"]
         assert sep == [" "]
         self.content = prolog_to_object(content)
-        assert end == ["\n"]
 
     def components(self):
-        return ["* ", self.content, "\n"]
+        return ["* ", self.content]
+
+
+class ListSeparator(Node):
+    def __init__(self, content):
+        assert content == ["\n"]
+
+    def components(self):
+        return ["\n"]
+
+
+class Paragraph(Node):
+    def __init__(self, content):
+        self.content = prolog_to_object(content)
+
+    def components(self):
+        return [self.content]
+
 
 class ConstrainedFormattingMark(Node):
     def __init__(self, open, content, close):
@@ -216,8 +241,11 @@ FUNCTOR_TO_CLASS = {
     "doc": Document,
     "h": Header,
     "attr_en": AttributeEntry,
+    "bs": BlockSeparator,
     "uol": UnorderedList,
     "uoli": UnorderedListItem,
+    "ls": ListSeparator,
+    "para": Paragraph,
     "cfm": ConstrainedFormattingMark,
     "ucfm": UnconstrainedFormattingMark,
 }
