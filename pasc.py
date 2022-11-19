@@ -14,6 +14,7 @@ def call_prolog_parser(f):
             prolog_path = pathlib.Path(__file__).parent / "prolog"
             prolog_thread.query(f'consult("{prolog_path}/document")')
             result = prolog_thread.query(f'parse_file("{f}", X)')
+            assert result, f"parsing failed"
             assert len(result) == 1, "ambiguous parse"
             return result[0]["X"]
 
