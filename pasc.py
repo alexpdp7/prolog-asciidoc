@@ -1,5 +1,9 @@
+import argparse
 import json
 import pathlib
+import os
+import sys
+import tempfile
 
 from swiplserver import PrologMQI, PrologThread
 
@@ -213,10 +217,16 @@ FUNCTOR_TO_CLASS = {
 
 
 def main():
-    import sys
-
-
-    doc = parse_asciidoc(sys.argv[1])
+    if sys.argv[1] == "-":
+        stdin = sys.stdin.read()
+        with tempfile.NamedTemporaryFile(delete=False) as stdin_file:
+            stdin_file.write(stdin.encode("utf8"))
+        try:
+            doc = parse_asciidoc(stdin_file.name)
+        finally:
+            os.remove(stdin_file.name)
+    else:
+        doc = parse_asciidoc(sys.argv[1])
     print(NodeJSONEncoder().encode(doc))
 
 
