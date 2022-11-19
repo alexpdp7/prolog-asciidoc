@@ -6,7 +6,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: sudo apt install -y swi-prolog
-      - run: find prolog/
       - run: python3 -c "import build ; build.test_prolog()"    
   build-and-push-image:
     runs-on: ubuntu-latest
