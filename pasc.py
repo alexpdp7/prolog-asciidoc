@@ -15,8 +15,7 @@ def call_prolog_parser(f):
             prolog_thread.query(f'consult("{prolog_path}/document")')
             result = prolog_thread.query(f'parse_file("{f}", X)')
             assert result, f"parsing failed"
-            assert len(result) == 1, "ambiguous parse"
-            return result[0]["X"]
+            return [r["X"] for r in result]
 
 
 def prolog_to_object(p):
@@ -44,13 +43,16 @@ def prolog_list_to_object(l):
 
 
 def parse_asciidoc(f, annotate_pos=True):
-    prolog = call_prolog_parser(f)
-    r = prolog_to_object(prolog)
-    with open(f, encoding="utf8") as h:
-        assert r.as_str() == h.read()
-    if annotate_pos:
-        r.annotate_pos()
-    return r
+    prolog_trees = call_prolog_parser(f)
+    result = []
+    for tree in prolog_trees:
+        r = prolog_to_object(tree)
+        with open(f, encoding="utf8") as h:
+            assert r.as_str() == h.read(), f"parsed:\n--{r.as_str()}--\ndid not match original file\nr: {NodeJSONEncoder().encode(r)}"
+        if annotate_pos:
+            r.annotate_pos()
+        result.append(r)
+    return result
 
 
 class Node:
@@ -223,12 +225,17 @@ def main():
         with tempfile.NamedTemporaryFile(delete=False) as stdin_file:
             stdin_file.write(stdin.encode("utf8"))
         try:
-            doc = parse_asciidoc(stdin_file.name)
+            docs = parse_asciidoc(stdin_file.name)
         finally:
             os.remove(stdin_file.name)
     else:
-        doc = parse_asciidoc(sys.argv[1])
-    print(NodeJSONEncoder().encode(doc))
+        docs = parse_asciidoc(sys.argv[1])
+    if len(docs) > 1:
+        print("Ambiguous parse")
+        for doc in docs:
+            print(NodeJSONEncoder().encode(doc))
+        sys.exit(1)
+    print(NodeJSONEncoder().encode(docs[0]))
 
 
 if __name__ == "__main__":
