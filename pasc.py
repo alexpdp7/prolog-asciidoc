@@ -236,8 +236,9 @@ def main():
         docs = parse_asciidoc(sys.argv[1])
     if len(docs) > 1:
         print("Ambiguous parse")
-        for doc in docs:
-            print(NodeJSONEncoder().encode(doc))
+        for i, doc in enumerate(docs):
+            with open(f"ambiguous.{i}", "w") as f:
+                f.write(NodeJSONEncoder().encode(doc))
         sys.exit(1)
     print(NodeJSONEncoder().encode(docs[0]))
 
