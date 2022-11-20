@@ -24,6 +24,8 @@ unordered_list_item(uoli("*", " ", PT)) -->
     {parse_line([X|XS], PT)}.
 
 paragraph(_) --> "* ", !, {fail}.
+paragraph(_) --> "\n", !, {fail}.
+paragraph(_) --> ":", !, {fail}.
 paragraph(PT) -->
     [X|XS],
     {parse_line([X|XS], PT)}.
