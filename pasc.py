@@ -250,7 +250,7 @@ FUNCTOR_TO_CLASS = {
 }
 
 
-def main():
+def parse_from_args():
     if sys.argv[1] == "-":
         stdin = sys.stdin.read()
         with tempfile.NamedTemporaryFile(delete=False) as stdin_file:
@@ -261,6 +261,11 @@ def main():
             os.remove(stdin_file.name)
     else:
         docs = parse_asciidoc(sys.argv[1])
+    return docs
+
+
+def main():
+    docs = parse_from_args()
     if len(docs) > 1:
         print("Ambiguous parse")
         for i, doc in enumerate(docs):
