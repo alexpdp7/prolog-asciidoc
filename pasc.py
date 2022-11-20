@@ -147,16 +147,15 @@ class Document(Node):
         return [self.header, self.blocks]
 
 class Header(Node): 
-    def __init__(self, header_lines, new_line):
+    def __init__(self, header_lines, header_separator):
         self.header_lines = prolog_to_object(header_lines)
         if self.header_lines == "empty":
             self.header_lines = []
-        assert new_line in ("\n", "empty")
+        assert header_separator == len(header_separator) * ["\n"]
+        self.header_separator = header_separator
 
     def components(self):
-        if self.header_lines == []:
-            return []
-        return [self.header_lines, "\n"]
+        return [self.header_lines, self.header_separator]
 
 class AttributeEntry(Node):
     def __init__(self, opening, attribute_name, attribute_value, closing):
